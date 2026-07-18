@@ -1,8 +1,12 @@
 ﻿using System.Security.Cryptography;
 using AiService.Authorization;
-using AiService.Consumers;
-using AiService.Models.ValueObjects.Options;
+using AiService.Db;
+using AiService.Grpc.Interceptors;
+using AiService.Models.AiMapping;
+using AiService.Models.Options;
 using AiService.Providers;
+using AiService.Services;
+using AiService.Services.Tokenizers;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -14,10 +18,11 @@ public static class Inject
     public static IServiceCollection AddFromAiService(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpClient();
+
+        services.AddScoped<AppDbContext>();
         
-        services.Configure<AiOptions>(configuration.GetSection(AiOptions.Ai));
-        
-        services.AddOptions<AiOptions>();
+        services.Configure<AuthOptions>(configuration.GetSection(AuthOptions.Auth));
+        services.AddOptions<AuthOptions>();
         
         var authOptions = configuration.GetSection(AuthOptions.Auth).Get<AuthOptions>()
                           ?? throw new ApplicationException("Auth options not found");
@@ -40,30 +45,20 @@ public static class Inject
             options.TokenValidationParameters = TokenValidationParametersFactory
                 .CreateWithLifeTime(key);
         });
+
+        services.Configure<AiSettings>(
+            configuration.GetSection("AiSettings"));
+
+        services.AddSingleton<AiRegistry>();
+        services.AddHttpClient<AiProvider>();
         
-        services.AddSingleton<AiProvider>();
+        services.AddSingleton<ITokenizerService, TokenizerService>();
         
-        services.Configure<MessageBrokerOptions>(
-            configuration.GetSection(MessageBrokerOptions.MessageBroker));
+        services.AddSingleton<IsServiceInterceptor>();
         
-        services.AddMassTransit(configure =>
+        services.AddGrpc(options =>
         {
-            configure.SetKebabCaseEndpointNameFormatter();
-            configure.AddConsumer<SendToAiCommandConsumer>();
-            
-            var options = configuration.GetSection(MessageBrokerOptions.MessageBroker).Get<MessageBrokerOptions>()
-                          ?? throw new ApplicationException("Missing RabbitMQ configuration");
-            
-            configure.UsingRabbitMq((context, cfg) =>
-            {
-                cfg.Host(new Uri(options.Host),h =>
-                {
-                    h.Username(options.Username);
-                    h.Password(options.Password);
-                });
-                
-                cfg.ConfigureEndpoints(context);
-            });
+            options.Interceptors.Add<IsServiceInterceptor>();
         });
         
         return services;

@@ -1,20 +1,32 @@
+using System.Text.Json.Serialization;
 using CSharpFunctionalExtensions;
 using NeuralForge.Domain.Folders.ValueObjects.Ids;
 using NeuralForge.Domain.Fragments;
+using NeuralForge.Domain.Fragments.ValueObjects.Ids;
+using NeuralForge.Domain.Projects;
+using NeuralForge.Domain.Projects.ValueObjects.Ids;
 using NeuralForge.Domain.Shared;
 
 namespace NeuralForge.Domain.Folders;
 
 public class FragmentFolder : Folder
 {
+    public ProjectId ProjectId { get; }
     private List<Fragment> _fragments = [];
     public IReadOnlyList<Fragment> Fragments => _fragments;
     
-    private FragmentFolder(FolderId id, FolderId? parentId, string name, int emojiId) : base(id, parentId, name, emojiId)
+    private FragmentFolder(FolderId id) : base(id)
     {
+        
     }
     
-    public static Result<FragmentFolder, ErrorList> Create(string name, FolderId? parentId = null, int? emojiId = null)
+    private FragmentFolder(FolderId id, Guid userId, FolderId? parentId, ProjectId projectId, string name, int emojiId) 
+        : base(id, userId, parentId, name, emojiId)
+    {
+        ProjectId = projectId;
+    }
+    
+    public static Result<FragmentFolder, ErrorList> Create(Guid userId, string name, ProjectId projectId, FragmentFolder? parent = null, int? emojiId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return (ErrorList)Errors.General.ValueIsRequired("name");
@@ -22,6 +34,9 @@ public class FragmentFolder : Folder
         if (emojiId < 0)
             return (ErrorList)Errors.General.ValueIsInvalid("emojiId");
         
-        return new FragmentFolder(FolderId.AddNewId(), parentId, name, emojiId ?? 0);
+        return new FragmentFolder(FolderId.AddNewId(), userId, parent?.Id, projectId, name, emojiId ?? 0);
     }
+    
+    public void AddFragment(Fragment fragment) => _fragments.Add(fragment);
+    public void RemoveFragment(Fragment fragment) => _fragments.Remove(fragment);
 }

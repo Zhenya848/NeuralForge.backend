@@ -1,0 +1,14 @@
+[
+  {
+    "productId": "5_collations",
+    "amount": 5
+  },
+  {
+    "productId": "subscribe_1_month", 
+    "months": 1
+  },
+  {
+    "productId": "subscribe_3_month",
+    "months": 3
+  }
+]
