@@ -10,4 +10,10 @@
       <ProjectReference Include="..\NeuralForge.Domain\NeuralForge.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Dapper.Abstractions" Version="4.0.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.17" />
+      <PackageReference Include="Scrutor" Version="7.0.0" />
+    </ItemGroup>
+
 </Project>

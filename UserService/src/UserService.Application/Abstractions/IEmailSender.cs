@@ -1,0 +1,11 @@
+using CSharpFunctionalExtensions;
+using UserService.Application.Models;
+using UserService.Domain.Shared;
+
+namespace UserService.Application.Abstractions;
+
+public interface IEmailSender
+{
+    Task<UnitResult<ErrorList>> SendVerificationCode(Guid userId, string confirmationToken, string email);
+    Task<UnitResult<ErrorList>> SendPasswordResetCode(Guid userId, string token, string email);
+}

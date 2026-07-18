@@ -8,6 +8,23 @@
 
     <ItemGroup>
       <ProjectReference Include="..\NeuralForge.Application\NeuralForge.Application.csproj" />
+      <Protobuf Include="Grpc\Protos\greet.proto" GrpcServices="Client" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+      <PackageReference Include="Grpc.Net.Client" Version="2.80.0" />
+      <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
+      <PackageReference Include="Grpc.Tools" Version="2.82.0">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.17" />
+      <PackageReference Include="Scrutor" Version="7.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Grpc\" />
     </ItemGroup>
 
 </Project>

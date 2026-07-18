@@ -1,4 +1,7 @@
+using System.Text.Json.Serialization;
 using CSharpFunctionalExtensions;
+using NeuralForge.Domain.Chats.Messages;
+using NeuralForge.Domain.Chats.ValueObjects;
 using NeuralForge.Domain.Chats.ValueObjects.Ids;
 using NeuralForge.Domain.Folders;
 using NeuralForge.Domain.Folders.ValueObjects.Ids;
@@ -8,6 +11,7 @@ namespace NeuralForge.Domain.Chats;
 
 public class Chat : Shared.Entity<ChatId>
 {
+    public Guid UserId { get; }
     public FolderId FolderId { get; private set; }
     public string Name { get; private set; }
     
@@ -15,25 +19,36 @@ public class Chat : Shared.Entity<ChatId>
     public IReadOnlyList<Message> Messages => _messages;
     private List<ChatId> _connections = [];
     public IReadOnlyList<ChatId> Connections => _connections;
+
+    public IEnumerable<string> GetUsedModels()
+    {
+        return _messages.Where(x => x is AiMessage)
+            .Select(x => (x as AiMessage)!.AiModel.Name).Distinct();
+    }
+
+    [JsonConstructor]
+    private Chat(ChatId id) : base(id)
+    {
+        
+    }
     
-    public IReadOnlyList<string> Models => _messages.Where(x => x is AiMessage)
-        .Select(x => (x as AiMessage)!.ModelName).Distinct().ToList();
-    
-    private Chat(ChatId id, string name, FolderId folderId) 
+    private Chat(ChatId id, Guid userId, string name, FolderId folderId) 
         : base(id)
     {
         Name = name;
         FolderId = folderId;
+        UserId = userId;
     }
 
     public static Result<Chat, ErrorList> Create(
+        Guid userId,
         string name, 
-        Folder path)
+        ChatFolder path)
     {
         if (string.IsNullOrWhiteSpace(name))
             return (ErrorList)Errors.General.ValueIsInvalid("name");
         
-        return new Chat(ChatId.AddNewId(), name, path.Id);
+        return new Chat(ChatId.AddNewId(), userId, name, path.Id);
     }
 
     public void AddConnection(Chat chat)
@@ -78,6 +93,17 @@ public class Chat : Shared.Entity<ChatId>
             return createResult.Error;
         
         _messages.Add(createResult.Value);
+        return Result.Success<ErrorList>();
+    }
+
+    public UnitResult<ErrorList> Update(string name, ChatFolder? folder = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return (ErrorList)Errors.General.ValueIsRequired("name");
+        
+        Name = name;
+        FolderId = folder?.Id ?? FolderId;
+        
         return Result.Success<ErrorList>();
     }
 }

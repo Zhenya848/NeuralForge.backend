@@ -1,5 +1,7 @@
+using System.Text.Json.Serialization;
 using CSharpFunctionalExtensions;
 using NeuralForge.Domain.Chats;
+using NeuralForge.Domain.Chats.Messages;
 using NeuralForge.Domain.Chats.ValueObjects.Ids;
 using NeuralForge.Domain.Folders;
 using NeuralForge.Domain.Folders.ValueObjects.Ids;
@@ -11,24 +13,30 @@ namespace NeuralForge.Domain.Fragments;
 
 public class Fragment : Shared.Entity<FragmentId>
 {
-    public FolderId FolderId { get; }
+    public Guid UserId { get; }
+    public FolderId FolderId { get; private set; }
     
-    public string Name { get; }
+    public string Name { get; private set; }
     public string Content { get; }
     
-    public ChatId ChatId { get; }
-    public MessageId MessageId { get; }
+    public Message Message { get; }
 
-    private Fragment(FragmentId id, string name, string content, ChatId chatId, MessageId messageId, FolderId folderId) : base(id)
+    [JsonConstructor]
+    private Fragment(FragmentId id) : base(id)
     {
+        
+    }
+    
+    private Fragment(FragmentId id, Guid userId, string name, string content, Message message, FolderId folderId) : base(id)
+    {
+        UserId = userId;
         Name = name;
         Content = content;
-        ChatId = chatId;
-        MessageId = messageId;
+        Message = message;
         FolderId = folderId;
     }
 
-    public static Result<Fragment, ErrorList> Create(string name, string content, Chat chat, Message message, FolderId folderId)
+    public static Result<Fragment, ErrorList> Create(Guid userId, string name, string content, Message message, FragmentFolder folder)
     {
         var errors = new List<Error>();
         
@@ -37,13 +45,21 @@ public class Fragment : Shared.Entity<FragmentId>
         
         if (string.IsNullOrWhiteSpace(content))
             errors.Add(Errors.General.ValueIsInvalid("content"));
-        
-        if (chat.Id != message.ChatId)
-            errors.Add(Errors.General.ValueIsInvalid("chatId"));
 
         if (errors.Count > 0)
             return (ErrorList)errors;
         
-        return new Fragment(FragmentId.AddNewId(), name, content, chat.Id, message.Id, folderId);
+        return new Fragment(FragmentId.AddNewId(), userId, name, content, message, folder.Id);
+    }
+
+    public UnitResult<ErrorList> Update(string name, FragmentFolder? folder = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return (ErrorList)Errors.General.ValueIsInvalid("name");
+        
+        Name = name.Trim();
+        FolderId = folder?.Id ?? FolderId;
+
+        return Result.Success<ErrorList>();
     }
 }

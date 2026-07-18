@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option csharp_namespace = "UserService.Presentation";
+
+package greet;
+
+service Greeter {
+  rpc SendToAi (SendToAiRequest) returns (SendToAiResponse);
+}
+
+message SendToAiRequest {
+  string userId = 1;
+  string chatId = 2;
+  string prompt = 3;
+  string aiModel = 4;
+  string base64File = 5;
+}
+
+message SendToAiResponse {
+  string message = 1;
+}
