@@ -43,12 +43,12 @@ public class Chat : Shared.Entity<ChatId>
     public static Result<Chat, ErrorList> Create(
         Guid userId,
         string name, 
-        ChatFolder path)
+        FolderId folderId)
     {
         if (string.IsNullOrWhiteSpace(name))
             return (ErrorList)Errors.General.ValueIsInvalid("name");
         
-        return new Chat(ChatId.AddNewId(), userId, name, path.Id);
+        return new Chat(ChatId.AddNewId(), userId, name, folderId);
     }
 
     public void AddConnection(Chat chat)
@@ -96,13 +96,13 @@ public class Chat : Shared.Entity<ChatId>
         return Result.Success<ErrorList>();
     }
 
-    public UnitResult<ErrorList> Update(string name, ChatFolder? folder = null)
+    public UnitResult<ErrorList> Update(string name, FolderId? folderId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return (ErrorList)Errors.General.ValueIsRequired("name");
         
         Name = name;
-        FolderId = folder?.Id ?? FolderId;
+        FolderId = folderId ?? FolderId;
         
         return Result.Success<ErrorList>();
     }

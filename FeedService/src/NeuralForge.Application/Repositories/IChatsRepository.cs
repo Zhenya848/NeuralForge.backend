@@ -9,9 +9,15 @@ namespace NeuralForge.Application.Repositories;
 
 public interface IChatsRepository : IRepository
 {
+    public Guid Add(Chat chat);
     public Guid Delete(Chat chat);
     public Task<Result<Chat, ErrorList>> GetById(
         Guid userId,
         ChatId chatId, 
         CancellationToken cancellationToken = default);
+    Task<Result<FolderId, ErrorList>> ResolveFolderIdForChat(
+        Guid userId,
+        ProjectId? projectId,
+        FolderId? folderId,
+        CancellationToken cancellationToken);
 }

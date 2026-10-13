@@ -36,10 +36,10 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                        p.name,
                        p.description,
                        p.emoji_id,
-                       p.color_id
+                       p.color_id,
+                       p.is_system
                    FROM projects p
                    WHERE p.user_id = @UserId
-                   AND (@ProjectNameFilter IS NULL OR p.name ILIKE '%' || @ProjectNameFilter || '%')
                    ORDER BY p.name
                    LIMIT @ProjectsLimit
                    OFFSET @Offset
@@ -63,7 +63,7 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                chat_models AS (
                    SELECT
                        chat_id,
-                       jsonb_agg(DISTINCT ai_model_name) AS models
+                       array_agg(DISTINCT ai_model_name) AS models
                    FROM messages
                    WHERE ai_model_name IS NOT NULL
                    GROUP BY chat_id
@@ -74,22 +74,22 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                    FROM (
                        SELECT
                            c.id,
-                           с.user_id,
-                           с.folder_id,
+                           c.user_id,
+                           c.folder_id,
                            c.name,
                            c.connections,
                            cm.models,
                            ROW_NUMBER() OVER (
                                PARTITION BY c.folder_id
                                ORDER BY c.name DESC
-                           ) rn
+                           ) AS rn
                        FROM chats c
+                       LEFT JOIN chat_models cm
+                           ON cm.chat_id = c.id
                        WHERE c.user_id = @UserId
                          AND c.folder_id IN (SELECT id FROM selected_folders)
-                       LEFT JOIN chat_models cm
-                       ON cm.chat_id = c.id;
                    ) t
-                   WHERE rn <= @ChatsPerFolderLimit
+                   WHERE t.rn <= @ChatsPerFolderLimit
                    LIMIT @ChatsTotalLimit
                )
                
@@ -104,6 +104,7 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                                    'Description', p.description,
                                    'EmojiId', p.emoji_id,
                                    'ColorId', p.color_id,
+                                   'IsSystem', p.is_system,
                                
                                    'ChatFolders',
                                    COALESCE(
@@ -116,6 +117,7 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                                                    'ProjectId', f.project_id,
                                                    'Name', f.name,
                                                    'EmojiId', f.emoji_id,
+                                                   'IsSystem', f.is_system,
                                
                                                    'Chats',
                                                    COALESCE(
@@ -127,7 +129,7 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                                                                    'FolderId', c.folder_id,
                                                                    'Name', c.name,
                                                                    'Connections', c.connections,
-                                                                   'UsedAiModels', COALESCE(cm.models, '[]'::jsonb)
+                                                                   'UsedAiModels', COALESCE(c.models, ARRAY[]::text[])
                                                                )
                                                                ORDER BY c.name DESC
                                                            )
@@ -157,8 +159,6 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
                        SELECT COUNT(*)
                        FROM projects p
                        WHERE p.user_id = @UserId
-                         AND (@ProjectNameFilter IS NULL
-                              OR p.name ILIKE '%' || @ProjectNameFilter || '%')
                    )
                ) AS result;
                """;
@@ -168,7 +168,6 @@ public class GetProjectsWithChatsByPaginationHandler : IQueryHandler<GetProjects
             var json = await connection.QuerySingleAsync<string>(sql, new
             {
                 UserId = query.UserId,
-                ProjectNameFilter = query.ProjectNameFilter,
                 Page = query.Page,
                 ProjectsLimit = pageSize,
                 Offset = (query.Page - 1) * pageSize,

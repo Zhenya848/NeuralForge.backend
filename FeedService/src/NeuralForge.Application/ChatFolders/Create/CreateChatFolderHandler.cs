@@ -11,14 +11,17 @@ namespace NeuralForge.Application.ChatFolders.Create;
 
 public class CreateChatFolderHandler : ICommandHandler<CreateChatFolderCommand, Result<Guid, ErrorList>>
 {
-    private readonly IProjectsRepository _repository;
+    private readonly IProjectsRepository _projectsRepository;
+    private readonly IChatFoldersRepository _chatFoldersRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateChatFolderHandler(
-        IProjectsRepository repository, 
+        IProjectsRepository projectsRepository, 
+        IChatFoldersRepository chatFoldersRepository,
         IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _projectsRepository = projectsRepository;
+        _chatFoldersRepository = chatFoldersRepository;
         _unitOfWork = unitOfWork;
     }
     
@@ -26,40 +29,55 @@ public class CreateChatFolderHandler : ICommandHandler<CreateChatFolderCommand, 
         CreateChatFolderCommand command, 
         CancellationToken cancellationToken = default)
     {
-        Project project;
-        
-        if (command.ProjectId is not null)
+        ProjectId projectId;
+        FolderId? parentFolderId = null;
+
+        if (command.ProjectId is null)
         {
-            var result = await _repository.GetById(
+            projectId = await _projectsRepository.GetDefaultProjectId(
                 command.UserId,
-                ProjectId.Create(command.ProjectId.Value),
                 cancellationToken);
-            
-            if (result.IsFailure)
-                return result.Error;
-            
-            project = result.Value;
         }
         else
-            project = await _repository.GetDefaultProject(command.UserId, cancellationToken);
+        {
+            var projectIdValue = ProjectId.Create(command.ProjectId.Value);
 
-        var parentId = command.ParentId is not null ? FolderId.Create(command.ParentId.Value) : null;
-        var hasFolder = project.ChatFolders.Any(f => f.Name == command.Name && f.ParentId == parentId);
+            var isProjectExist = await _projectsRepository.IsProjectExist(
+                command.UserId,
+                projectIdValue,
+                cancellationToken);
 
-        if (hasFolder)
-            return (ErrorList)Error.Conflict("folder.name.duplicate", "Folder with this name already exists");
+            if (isProjectExist == false)
+                return (ErrorList)Errors.General.NotFound(command.ProjectId.Value);
+
+            projectId = projectIdValue;
+        }
+
+        if (command.ParentId is not null)
+        {
+            parentFolderId = FolderId.Create(command.ParentId.Value);
+
+            var isFolderExist = await _chatFoldersRepository.IsFolderExist(
+                command.UserId,
+                projectId,
+                parentFolderId,
+                cancellationToken);
+
+            if (!isFolderExist)
+                return (ErrorList)Errors.General.NotFound(command.ParentId.Value);
+        }
 
         var createFolderResult = ChatFolder.Create(
             command.UserId, 
             command.Name, 
-            project.Id, 
-            project.ChatFolders.FirstOrDefault(f => f.Id == parentId), 
+            projectId, 
+            parentFolderId, 
             command.EmojiId);
         
         if (createFolderResult.IsFailure)
             return createFolderResult.Error;
         
-        project.AddFolder(createFolderResult.Value);
+        _chatFoldersRepository.Create(createFolderResult.Value);
         await _unitOfWork.SaveChanges(cancellationToken);
 
         return createFolderResult.Value.Id.Value;

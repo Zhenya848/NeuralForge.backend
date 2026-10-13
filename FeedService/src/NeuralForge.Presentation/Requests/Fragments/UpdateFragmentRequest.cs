@@ -1,3 +1,3 @@
 namespace NeuralForge.Presentation.Requests.Fragments;
 
-public record UpdateFragmentRequest(Guid FragmentId, string Name, Guid? FolderId = null);
+public record UpdateFragmentRequest(string Name, Guid? FolderId = null);

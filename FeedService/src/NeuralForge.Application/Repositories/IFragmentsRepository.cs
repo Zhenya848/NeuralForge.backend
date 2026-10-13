@@ -11,9 +11,15 @@ namespace NeuralForge.Application.Repositories;
 
 public interface IFragmentsRepository : IRepository
 {
+    public Guid Add(Fragment fragment);
     public Guid Delete(Fragment chat);
     public Task<Result<Fragment, ErrorList>> GetById(
         Guid userId,
         FragmentId fragmentId, 
         CancellationToken cancellationToken = default);
+    Task<Result<FolderId, ErrorList>> ResolveFolderIdForFragment(
+        Guid userId,
+        ProjectId? projectId,
+        FolderId? folderId,
+        CancellationToken cancellationToken);
 }

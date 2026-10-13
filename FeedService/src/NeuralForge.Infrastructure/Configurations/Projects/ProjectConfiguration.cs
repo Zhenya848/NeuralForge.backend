@@ -19,6 +19,7 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(d => d.Description).IsRequired().HasMaxLength(250);
         builder.Property(e => e.EmojiId).IsRequired();
         builder.Property(c => c.ColorId).IsRequired();
+        builder.Property(i => i.IsSystem).IsRequired();
         
         builder.HasMany(c => c.ChatFolders).WithOne().HasForeignKey(i => i.ProjectId);
         builder.HasMany(f => f.FragmentFolders).WithOne().HasForeignKey(i => i.ProjectId);

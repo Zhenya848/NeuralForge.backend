@@ -3,7 +3,7 @@
 namespace NeuralForge.Presentation
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class ApplicationController : ControllerBase
     {
     }

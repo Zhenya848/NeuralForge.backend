@@ -112,6 +112,10 @@ namespace NeuralForge.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("emoji_id");
 
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_system");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -191,6 +195,10 @@ namespace NeuralForge.Infrastructure.Migrations
                     b.Property<int>("EmojiId")
                         .HasColumnType("integer")
                         .HasColumnName("emoji_id");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_system");
 
                     b.Property<string>("Name")
                         .IsRequired()

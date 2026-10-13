@@ -13,7 +13,8 @@ public class Project : Shared.Entity<ProjectId>
     public string Name { get; private set; }
     public string Description { get; private set; }
     public int EmojiId { get; private set; }
-    public int ColorId { get; init; }
+    public int ColorId { get; private set; }
+    public bool IsSystem { get; init; } = false;
     private List<FragmentFolder> _fragmentFolders = [];
     public IReadOnlyList<FragmentFolder> FragmentFolders => _fragmentFolders;
     private List<ChatFolder> _chatFolders = [];
@@ -25,7 +26,7 @@ public class Project : Shared.Entity<ProjectId>
         
     }
 
-    protected Project(ProjectId id, Guid userId, string name, string description, int emojiId, int colorId) : base(id)
+    protected Project(ProjectId id, Guid userId, string name, string description, int emojiId, int colorId, bool isSystem) : base(id)
     {
         UserId = userId;
         Name = name;
@@ -34,7 +35,7 @@ public class Project : Shared.Entity<ProjectId>
         ColorId = colorId;
     }
     
-    public static Result<Project, ErrorList> Create(Guid userId, string name, string description, int emojiId, int colorId)
+    public static Result<Project, ErrorList> Create(Guid userId, string name, string description, int emojiId, int colorId, bool isSystem = false)
     {
         var errors = new List<Error>();
         
@@ -53,7 +54,7 @@ public class Project : Shared.Entity<ProjectId>
         if (errors.Count > 0)
             return (ErrorList)errors;
         
-        return new Project(ProjectId.AddNewId(), userId, name, description, emojiId, colorId);
+        return new Project(ProjectId.AddNewId(), userId, name, description, emojiId, colorId, isSystem);
     }
 
     public void AddFolder(Folder folder)
@@ -87,6 +88,11 @@ public class Project : Shared.Entity<ProjectId>
         
         if (errors.Count > 0)
             return (ErrorList)errors;
+
+        Name = name;
+        Description = description;
+        EmojiId = emojiId;
+        ColorId = colorId;
         
         return Result.Success<ErrorList>();
     }
