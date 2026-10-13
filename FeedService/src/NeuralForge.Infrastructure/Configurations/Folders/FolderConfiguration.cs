@@ -14,6 +14,7 @@ public class FolderConfiguration : IEntityTypeConfiguration<Folder>
             .HasConversion(i => i.Value, value => FolderId.Create(value));
         
         builder.Property(i => i.UserId).IsRequired();
+        builder.Property(i => i.IsSystem).IsRequired();
         
         builder.Property(i => i.ParentId)
             .HasConversion(

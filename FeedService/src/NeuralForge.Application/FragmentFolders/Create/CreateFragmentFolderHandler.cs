@@ -11,12 +11,17 @@ namespace NeuralForge.Application.FragmentFolders.Create;
 
 public class CreateFragmentFolderHandler : ICommandHandler<CreateFragmentFolderCommand, Result<Guid, ErrorList>>
 {
-    private readonly IProjectsRepository _repository;
+    private readonly IProjectsRepository _projectsRepository;
+    private readonly IFragmentFoldersRepository _fragmentFoldersRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateFragmentFolderHandler(IProjectsRepository repository, IUnitOfWork unitOfWork)
+    public CreateFragmentFolderHandler(
+        IProjectsRepository projectsRepository, 
+        IFragmentFoldersRepository fragmentFoldersRepository,
+        IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _projectsRepository = projectsRepository;
+        _fragmentFoldersRepository = fragmentFoldersRepository;
         _unitOfWork = unitOfWork;
     }
     
@@ -24,40 +29,55 @@ public class CreateFragmentFolderHandler : ICommandHandler<CreateFragmentFolderC
         CreateFragmentFolderCommand command, 
         CancellationToken cancellationToken = default)
     {
-        Project project;
-        
-        if (command.ProjectId is not null)
+        ProjectId projectId;
+        FolderId? parentFolderId = null;
+
+        if (command.ProjectId is null)
         {
-            var result = await _repository.GetById(
+            projectId = await _projectsRepository.GetDefaultProjectId(
                 command.UserId,
-                ProjectId.Create(command.ProjectId.Value),
                 cancellationToken);
-            
-            if (result.IsFailure)
-                return result.Error;
-            
-            project = result.Value;
         }
         else
-            project = await _repository.GetDefaultProject(command.UserId, cancellationToken);
+        {
+            var projectIdValue = ProjectId.Create(command.ProjectId.Value);
+
+            var isProjectExist = await _projectsRepository.IsProjectExist(
+                command.UserId,
+                projectIdValue,
+                cancellationToken);
+
+            if (isProjectExist == false)
+                return (ErrorList)Errors.General.NotFound(command.ProjectId.Value);
+
+            projectId = projectIdValue;
+        }
+
+        if (command.ParentId is not null)
+        {
+            parentFolderId = FolderId.Create(command.ParentId.Value);
+
+            var isFolderExist = await _fragmentFoldersRepository.IsFolderExist(
+                command.UserId,
+                projectId,
+                parentFolderId,
+                cancellationToken);
+
+            if (!isFolderExist)
+                return (ErrorList)Errors.General.NotFound(command.ParentId.Value);
+        }
         
-        var parentId = command.ParentId is not null ? FolderId.Create(command.ParentId.Value) : null;
-        var hasFolder = project.FragmentFolders.Any(f => f.Name == command.Name && f.ParentId == parentId);
-
-        if (hasFolder)
-            return (ErrorList)Error.Conflict("folder.name.duplicate", "Folder with this name already exists");
-
         var createFolderResult = FragmentFolder.Create(
             command.UserId,
             command.Name,
-            project.Id,
-            project.FragmentFolders.FirstOrDefault(f => f.Id == parentId),
+            projectId,
+            parentFolderId,
             command.EmojiId);
         
         if (createFolderResult.IsFailure)
             return createFolderResult.Error;
-        
-        project.AddFolder(createFolderResult.Value);
+
+        _fragmentFoldersRepository.Add(createFolderResult.Value);
         await _unitOfWork.SaveChanges(cancellationToken);
 
         return createFolderResult.Value.Id.Value;

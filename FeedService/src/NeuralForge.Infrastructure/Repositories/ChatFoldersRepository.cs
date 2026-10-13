@@ -36,7 +36,6 @@ public class ChatFoldersRepository : IChatFoldersRepository
     public async Task<Result<ChatFolder, ErrorList>> GetById(Guid userId, FolderId id, CancellationToken cancellationToken = default)
     {
         var chatFolder = await _dbContext.ChatFolders
-            .Include(c => c.Chats)
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
 
         if (chatFolder is null)
@@ -45,43 +44,51 @@ public class ChatFoldersRepository : IChatFoldersRepository
         return chatFolder;
     }
 
-    public async Task<ChatFolder> GetDefaultFolder(Guid userId, CancellationToken cancellationToken = default)
+    public Task<bool> IsFolderExist(Guid userId, ProjectId projectId, FolderId id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ChatFolders.AnyAsync
+            (c => c.Id == id && c.UserId == userId && c.ProjectId == projectId, cancellationToken);
+    }
+
+    public async Task<FolderId> GetDefaultFolderId(Guid userId, ProjectId? projectId, CancellationToken cancellationToken = default)
     {
         var result = await _dbContext.ChatFolders
-            .Include(c => c.Chats)
             .FirstOrDefaultAsync(f =>
-                f.Name == Constants.DefaultFolderName &&
-                f.UserId  == userId, 
+                f.IsSystem && f.UserId == userId && (projectId == null || f.ProjectId == projectId), 
                 cancellationToken);
 
         if (result is not null) 
-            return result;
+            return result.Id;
         
         var defaultProject = await _dbContext.Projects.FirstOrDefaultAsync(p => 
-            p.UserId == userId && 
-            p.Name == Constants.DefaultProjectName, 
+            p.UserId == userId && p.IsSystem, 
             cancellationToken);
 
         if (defaultProject is null)
         {
-            defaultProject = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0).Value;
+            defaultProject = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0, true).Value;
             _dbContext.Projects.Add(defaultProject);
         }
 
         result = ChatFolder.Create(userId, Constants.DefaultFolderName, defaultProject.Id).Value;
         defaultProject.AddFolder(result);
 
-        return result;
+        return result.Id;
     }
 
     public async Task<bool> HasFolderWithName(
         Guid userId, 
         string name, 
         CancellationToken cancellationToken = default, 
+        ProjectId? projectId = null,
         FolderId? parentId = null)
     {
         var result = await _dbContext.ChatFolders.AnyAsync(f =>
-            f.UserId == userId && f.ParentId == parentId && f.Name == name, cancellationToken);
+            f.UserId == userId && 
+            (parentId == null || f.ParentId == parentId) && 
+            (projectId == null || f.ProjectId == projectId) && 
+            f.Name == name, 
+            cancellationToken);
         
         return result;
     }

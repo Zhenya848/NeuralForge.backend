@@ -40,8 +40,6 @@ public class GetProjectsWithFragmentsByPaginationHandler : IQueryHandler<GetProj
                        p.color_id
                    FROM projects p
                    WHERE p.user_id = @UserId
-                     AND (@ProjectNameFilter IS NULL
-                          OR p.name ILIKE '%' || @ProjectNameFilter || '%')
                    ORDER BY p.name
                    LIMIT @ProjectsLimit
                    OFFSET @Offset
@@ -165,8 +163,6 @@ public class GetProjectsWithFragmentsByPaginationHandler : IQueryHandler<GetProj
                        SELECT COUNT(*)
                        FROM projects p
                        WHERE p.user_id = @UserId
-                         AND (@ProjectNameFilter IS NULL
-                              OR p.name ILIKE '%' || @ProjectNameFilter || '%')
                    )
                ) AS result;
                """;
@@ -176,7 +172,6 @@ public class GetProjectsWithFragmentsByPaginationHandler : IQueryHandler<GetProj
             var json = await connection.QuerySingleAsync<string>(sql, new
             {
                 UserId = query.UserId,
-                ProjectNameFilter = query.ProjectNameFilter,
                 NameFilter = query.NameFilter,
                 Page = query.Page,
                 ProjectsLimit = pageSize,

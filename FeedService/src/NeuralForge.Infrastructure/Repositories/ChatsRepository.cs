@@ -19,6 +19,13 @@ public class ChatsRepository : IChatsRepository
         _dbContext = dbContext;
     }
 
+    public Guid Add(Chat chat)
+    {
+        _dbContext.Chats.Add(chat);
+        
+        return chat.Id;
+    }
+
     public Guid Delete(Chat chat)
     {
         _dbContext.Chats.Remove(chat);
@@ -41,5 +48,45 @@ public class ChatsRepository : IChatsRepository
             return (ErrorList)Errors.General.NotFound(chatId);
         
         return chat;
+    }
+
+    public async Task<Result<FolderId, ErrorList>> ResolveFolderIdForChat(
+        Guid userId, ProjectId? projectId, FolderId? folderId, CancellationToken cancellationToken)
+    {
+        if (folderId is not null)
+        {
+            var exists = await _dbContext.ChatFolders.AnyAsync(
+                f => f.UserId == userId && f.Id == folderId,
+                cancellationToken);
+
+            if (!exists)
+                return (ErrorList)Errors.General.NotFound(folderId);
+
+            return folderId;
+        }
+        
+        if (projectId is null)
+        {
+            projectId = await _dbContext.Projects
+                .Where(p => p.UserId == userId && p.IsSystem)
+                .Select(p => p.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (projectId is null)
+                return (ErrorList)Errors.General.NotFound();
+        }
+        
+        var systemFolderId = await _dbContext.ChatFolders
+            .Where(f =>
+                f.UserId == userId &&
+                f.ProjectId == projectId &&
+                f.IsSystem)
+            .Select(f => f.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (systemFolderId is null)
+            return (ErrorList)Errors.General.NotFound();
+
+        return systemFolderId;
     }
 }

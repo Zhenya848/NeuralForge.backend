@@ -9,6 +9,7 @@ using NeuralForge.Domain.Chats.ValueObjects.Ids;
 using NeuralForge.Domain.Folders;
 using NeuralForge.Domain.Folders.ValueObjects.Ids;
 using NeuralForge.Domain.Fragments;
+using NeuralForge.Domain.Projects.ValueObjects.Ids;
 using NeuralForge.Domain.Shared;
 using NeuralForge.Domain.Shared.ValueObjects.Dtos;
 
@@ -16,13 +17,13 @@ namespace NeuralForge.Application.Fragments.Create;
 
 public class CreateFragmentHandler : ICommandHandler<CreateFragmentCommand, Result<Guid, ErrorList>>
 {
-    private readonly IFragmentFoldersRepository _repository;
+    private readonly IFragmentsRepository _repository;
     private readonly ISqlConnectionFactory _sqlConnectionFactory;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateFragmentHandler> _logger;
 
     public CreateFragmentHandler(
-        IFragmentFoldersRepository repository, 
+        IFragmentsRepository repository, 
         ISqlConnectionFactory sqlConnectionFactory, 
         IUnitOfWork unitOfWork,
         ILogger<CreateFragmentHandler> logger)
@@ -37,22 +38,17 @@ public class CreateFragmentHandler : ICommandHandler<CreateFragmentCommand, Resu
         CreateFragmentCommand command, 
         CancellationToken cancellationToken = default)
     {
-        FragmentFolder folder;
-
-        if (command.FolderId is not null)
-        {
-            var folderResult = await _repository.GetById(
-                command.UserId, 
-                FolderId.Create(command.FolderId.Value), 
-                cancellationToken);
-
-            if (folderResult.IsFailure)
-                return folderResult.Error;
-            
-            folder = folderResult.Value;
-        }
-        else
-            folder = await _repository.GetDefaultFolder(command.UserId, cancellationToken);
+        var projectId = command.ProjectId is not null ? ProjectId.Create(command.ProjectId.Value) : null;
+        var folderId = command.FolderId is not null ? FolderId.Create(command.FolderId.Value) : null;
+        
+        var folderIdResult = await _repository.ResolveFolderIdForFragment(
+            command.UserId,
+            projectId,
+            folderId,
+            cancellationToken);
+        
+        if (folderIdResult.IsFailure)
+            return folderIdResult.Error;
 
         try
         {
@@ -67,12 +63,13 @@ public class CreateFragmentHandler : ICommandHandler<CreateFragmentCommand, Resu
                 messageResult.SerialNumber,
                 messageResult.Value).Value;
             
-            var fragmentResult = Fragment.Create(command.UserId, command.Name, command.Content, message, folder);
+            var fragmentResult = Fragment.Create(
+                command.UserId, command.Name, command.Content, message, folderIdResult.Value);
         
             if (fragmentResult.IsFailure)
                 return fragmentResult.Error;
         
-            folder.AddFragment(fragmentResult.Value);
+            _repository.Add(fragmentResult.Value);
             await _unitOfWork.SaveChanges(cancellationToken);
         
             return fragmentResult.Value.Id.Value;

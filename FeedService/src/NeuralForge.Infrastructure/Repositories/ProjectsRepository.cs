@@ -31,6 +31,11 @@ public class ProjectsRepository : IProjectsRepository
         return project.Id;
     }
 
+    public Task<bool> IsProjectExist(Guid userId, ProjectId projectId, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Projects.AnyAsync(project => project.Id == projectId, cancellationToken);
+    }
+
     public async Task<Result<Project, ErrorList>> GetById(
         Guid userId, 
         ProjectId id, 
@@ -46,18 +51,29 @@ public class ProjectsRepository : IProjectsRepository
         return result;
     }
 
-    public async Task<Project> GetDefaultProject(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<List<Project>> GetByIds(
+        Guid userId, 
+        IEnumerable<ProjectId> projectIds, 
+        CancellationToken cancellationToken = default)
+    {
+        var projects = await _dbContext.Projects
+            .Where(p => p.UserId == userId && projectIds.Contains(p.Id))
+            .ToListAsync(cancellationToken);
+        
+        return projects;
+    }
+
+    public async Task<ProjectId> GetDefaultProjectId(Guid userId, CancellationToken cancellationToken = default)
     {
         var result = await _dbContext.Projects
-            .Include(f => f.ChatFolders)
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.Name == Constants.DefaultProjectName, cancellationToken);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.IsSystem, cancellationToken);
 
         if (result is not null) 
-            return result;
+            return result.Id;
         
-        result = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0).Value;
+        result = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0, true).Value;
         _dbContext.Projects.Add(result);
 
-        return result;
+        return result.Id;
     }
 }

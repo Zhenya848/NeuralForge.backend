@@ -4,6 +4,7 @@ using NeuralForge.Application.Repositories;
 using NeuralForge.Domain.Folders;
 using NeuralForge.Domain.Folders.ValueObjects.Ids;
 using NeuralForge.Domain.Projects;
+using NeuralForge.Domain.Projects.ValueObjects.Ids;
 using NeuralForge.Domain.Shared;
 using NeuralForge.Infrastructure.DbContexts;
 
@@ -16,6 +17,13 @@ public class FragmentFoldersRepository : IFragmentFoldersRepository
     public FragmentFoldersRepository(AppDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    public Guid Add(FragmentFolder folder)
+    {
+        _dbContext.FragmentFolders.Add(folder);
+        
+        return folder.Id;
     }
 
     public Guid Delete(FragmentFolder folder)
@@ -31,8 +39,6 @@ public class FragmentFoldersRepository : IFragmentFoldersRepository
         CancellationToken cancellationToken = default)
     {
         var chatFolder = await _dbContext.FragmentFolders
-            .Include(f => f.Fragments)
-            .ThenInclude(m => m.Message)
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
 
         if (chatFolder is null)
@@ -41,11 +47,15 @@ public class FragmentFoldersRepository : IFragmentFoldersRepository
         return chatFolder;
     }
 
+    public Task<bool> IsFolderExist(Guid userId, ProjectId projectId, FolderId id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.FragmentFolders.AnyAsync
+            (c => c.Id == id && c.UserId == userId && c.ProjectId == projectId, cancellationToken);
+    }
+
     public async Task<FragmentFolder> GetDefaultFolder(Guid userId, CancellationToken cancellationToken = default)
     {
         var result = await _dbContext.FragmentFolders
-            .Include(f => f.Fragments)
-            .ThenInclude(m => m.Message)
             .FirstOrDefaultAsync(f =>
                     f.Name == Constants.DefaultFolderName &&
                     f.UserId  == userId, 
@@ -61,7 +71,7 @@ public class FragmentFoldersRepository : IFragmentFoldersRepository
 
         if (defaultProject is null)
         {
-            defaultProject = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0).Value;
+            defaultProject = Project.Create(userId, Constants.DefaultProjectName, "", 0, 0, true).Value;
             _dbContext.Projects.Add(defaultProject);
         }
 

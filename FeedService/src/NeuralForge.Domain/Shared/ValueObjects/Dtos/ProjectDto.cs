@@ -8,6 +8,7 @@ public record ProjectDto
     public string Description { get; init; }
     public int EmojiId { get; init; }
     public int ColorId { get; init; }
+    public bool IsSystem { get; init; }
     public FragmentFolderDto[] FragmentFolders { get; init; } = [];
     public ChatFolderDto[] ChatFolders { get; init; } = [];
 }

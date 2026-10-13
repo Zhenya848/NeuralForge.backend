@@ -36,7 +36,7 @@ public class Fragment : Shared.Entity<FragmentId>
         FolderId = folderId;
     }
 
-    public static Result<Fragment, ErrorList> Create(Guid userId, string name, string content, Message message, FragmentFolder folder)
+    public static Result<Fragment, ErrorList> Create(Guid userId, string name, string content, Message message, FolderId folderId)
     {
         var errors = new List<Error>();
         
@@ -49,7 +49,7 @@ public class Fragment : Shared.Entity<FragmentId>
         if (errors.Count > 0)
             return (ErrorList)errors;
         
-        return new Fragment(FragmentId.AddNewId(), userId, name, content, message, folder.Id);
+        return new Fragment(FragmentId.AddNewId(), userId, name, content, message, folderId);
     }
 
     public UnitResult<ErrorList> Update(string name, FragmentFolder? folder = null)
